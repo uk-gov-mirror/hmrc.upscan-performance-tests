@@ -1,36 +1,65 @@
 package uk.gov.hmrc.perftests
 
 import io.gatling.core.Predef._
+import io.gatling.core.action.builder.SessionHookBuilder
 import io.gatling.http.Predef._
 import io.gatling.http.request.builder.HttpRequestBuilder
+import uk.gov.hmrc.performance.conf.{HttpConfiguration, ServicesConfiguration}
+import org.json4s._
+import org.json4s.native.JsonMethods._
 
-object UpscanRequests{
+import scala.util.Random
 
-  val initiateUrl = "http://www.staging.tax.service.gov.uk/upscan/initiate"
+object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
-  val callBackUrl = ""
+  private val baseUrl = baseUrlFor("upscan")
 
-  val minimumfileSize = 0
+  val callBackUrl = "http://notFound.com"
 
-  val maximumFileSize = 70000
+  private val maxFileSize = 10 * 1024 * 1024
 
-  val mimeType = ""
-
-  val upscanInitiate: HttpRequestBuilder = {
+  val initiateTheUpload: HttpRequestBuilder =
     http("Upscan Initiate")
-      .post(initiateUrl)
-      .header("Content-Type", "application/json")
-      .formParam("callbackUrl", callBackUrl)
-      .formParam("minimumFileSize", minimumfileSize)
-      .formParam("maximumFileSize", maximumFileSize)
-      .formParam("expectedMimeType",mimeType)
-      .check(jsonPath("$.uploadRequest").find.saveAs("preparedUpload"))
+      .post(s"$baseUrl/initiate")
+      .body(
+        StringBody(s"""{ "callbackUrl": "$callBackUrl" }""")
+      )
+      .asJSON
+      .check(jsonPath("$.uploadRequest").find.saveAs("initiateResponse"))
       .check(status.is(200))
-  }
 
-  val fileUploadToAWS: HttpRequestBuilder = {
-    http("Uploading file to AWS")
-      .post("${preparedUpload.href}")
-      .check(status.is(203))
-  }
+  case class UploadFormTemplate(href: String, fields: Map[String, String])
+
+  val parseInitiateResponse = new SessionHookBuilder(
+    (session: Session) => {
+      implicit val formats = DefaultFormats
+
+      val initiateResponse   = session.attributes("initiateResponse").toString
+      val uploadFormTemplate = parse(initiateResponse).extract[UploadFormTemplate]
+      session
+        .set("uploadHref", uploadFormTemplate.href)
+        .set("fields", uploadFormTemplate.fields)
+    }
+  )
+
+  val generateFileBody: SessionHookBuilder = new SessionHookBuilder(
+    (session: Session) => {
+      val fileBody: Array[Byte] = Array.fill[Byte](Random.nextInt(maxFileSize))(0)
+      session.set("fileBody", fileBody)
+    }
+  )
+
+  val uploadFileToAws: HttpRequestBuilder = http("Uploading file to AWS")
+    .post("${uploadHref}")
+    .asMultipartForm
+    .bodyPart(StringBodyPart("x-amz-meta-callback-url", "${fields.x-amz-meta-callback-url}"))
+    .bodyPart(StringBodyPart("x-amz-date", "${fields.x-amz-date}"))
+    .bodyPart(StringBodyPart("x-amz-credential", "${fields.x-amz-credential}"))
+    .bodyPart(StringBodyPart("x-amz-algorithm", "${fields.x-amz-algorithm}"))
+    .bodyPart(StringBodyPart("key", "${fields.key}"))
+    .bodyPart(StringBodyPart("acl", "${fields.acl}"))
+    .bodyPart(StringBodyPart("x-amz-signature ", "${fields.x-amz-signature}"))
+    .bodyPart(StringBodyPart("policy", "${fields.policy}"))
+    .bodyPart(ByteArrayBodyPart("file", "${fileBody}"))
+    .check(status.is(204))
 }
