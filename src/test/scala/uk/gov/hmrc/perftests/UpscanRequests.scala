@@ -7,26 +7,30 @@ import io.gatling.http.request.builder.HttpRequestBuilder
 import uk.gov.hmrc.performance.conf.{HttpConfiguration, ServicesConfiguration}
 import org.json4s._
 import org.json4s.native.JsonMethods._
+import scala.concurrent.duration._
 
 import scala.util.Random
 
 object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
-  private val baseUrl = baseUrlFor("upscan")
+  private val upscanBaseUrl        = baseUrlFor("upscan")
+  private val upscaListenerBaseUrl = baseUrlFor("upscan-listener")
 
-  val callBackUrl = "http://notFound.com"
+  val callBackUrl = "https://upscan-listener.public.mdtp/upscan-listener/listen"
 
   private val maxFileSize = 10 * 1024 * 1024
 
   val initiateTheUpload: HttpRequestBuilder =
     http("Upscan Initiate")
-      .post(s"$baseUrl/initiate")
+      .post(s"$upscanBaseUrl/initiate")
       .body(
         StringBody(s"""{ "callbackUrl": "$callBackUrl" }""")
       )
       .asJSON
-      .check(jsonPath("$.uploadRequest").find.saveAs("initiateResponse"))
+      .check(jsonPath("$").find.saveAs("initiateResponse"))
       .check(status.is(200))
+
+  case class PreparedUpload(reference: String, uploadRequest: UploadFormTemplate)
 
   case class UploadFormTemplate(href: String, fields: Map[String, String])
 
@@ -35,10 +39,11 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
       implicit val formats = DefaultFormats
 
       val initiateResponse   = session.attributes("initiateResponse").toString
-      val uploadFormTemplate = parse(initiateResponse).extract[UploadFormTemplate]
+      val uploadFormTemplate = parse(initiateResponse).extract[PreparedUpload]
       session
-        .set("uploadHref", uploadFormTemplate.href)
-        .set("fields", uploadFormTemplate.fields)
+        .set("uploadHref", uploadFormTemplate.uploadRequest.href)
+        .set("fields", uploadFormTemplate.uploadRequest.fields)
+        .set("reference", uploadFormTemplate.reference)
     }
   )
 
@@ -62,4 +67,37 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .bodyPart(StringBodyPart("policy", "${fields.policy}"))
     .bodyPart(ByteArrayBodyPart("file", "${fileBody}"))
     .check(status.is(204))
+
+  case class Response(reference: String, fileStatus: String)
+
+  case class Responses(responses: Seq[Response])
+
+  val queryUpscanListener: HttpRequestBuilder = http("Fetching file status from upscan-listener")
+    .get(s"$upscaListenerBaseUrl/poll")
+    .check(status.is(200))
+    .check(jsonPath("$").find.saveAs("polledItems"))
+
+  val handleResponseFromUpscanListener: SessionHookBuilder = new SessionHookBuilder(
+    (session: Session) => {
+
+      implicit val formats = DefaultFormats
+
+      val responses =
+        parse(session.attributes("polledItems").toString).extract[Responses]
+
+      val matchingResponse = responses.responses.find(_.reference == session.attributes("reference"))
+
+      if (matchingResponse.isDefined) {
+        session.set("resultFound", true)
+      } else {
+        session
+      }
+    }
+  )
+
+  val pollForResult =
+    asLongAs(session => !session.attributes.get("resultFound").contains(true)) {
+      exec(queryUpscanListener).exec(handleResponseFromUpscanListener).pause(500 milliseconds)
+    }.actionBuilders
+
 }

@@ -6,9 +6,7 @@ import uk.gov.hmrc.perftests.UpscanRequests._
 class Simulations extends PerformanceTestRunner {
 
   setup("upscan", "Upscan successful file upload")
-    .withRequests(initiateTheUpload)
-    .withActions(parseInitiateResponse, generateFileBody)
-    .withActions(uploadFileToAws)
-
+    .withActions(initiateTheUpload, parseInitiateResponse, generateFileBody, uploadFileToAws)
+    .withActions(pollForResult: _*)
   runSimulation()
 }
