@@ -22,7 +22,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val initiateTheUpload: HttpRequestBuilder =
     http("Upscan Initiate")
-      .post(s"$upscanBaseUrl/initiate")
+      .post(s"$upscanBaseUrl/upscan/initiate")
       .body(
         StringBody(s"""{ "callbackUrl": "$callBackUrl" }""")
       )
