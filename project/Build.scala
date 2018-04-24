@@ -39,6 +39,8 @@ object Build extends Build {
         Dependencies.Compile.gatlingHighCharts,
         Dependencies.Compile.gatlingTestFramework,
         Dependencies.Compile.performanceTestRunner,
+        Dependencies.Compile.json4sJackson,
+        Dependencies.Compile.json4sNative,
         Dependencies.Compile.gatlingVTDXMLPlugin))
       .settings(
         retrieveManaged := true,
