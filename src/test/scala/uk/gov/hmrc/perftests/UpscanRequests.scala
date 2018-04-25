@@ -4,12 +4,11 @@ import io.gatling.core.Predef._
 import io.gatling.core.action.builder.SessionHookBuilder
 import io.gatling.http.Predef._
 import io.gatling.http.request.builder.HttpRequestBuilder
-import uk.gov.hmrc.performance.conf.{HttpConfiguration, ServicesConfiguration}
 import org.json4s._
 import org.json4s.native.JsonMethods._
-import scala.concurrent.duration._
+import uk.gov.hmrc.performance.conf.{HttpConfiguration, ServicesConfiguration}
 
-import scala.util.Random
+import scala.concurrent.duration._
 
 object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
@@ -18,7 +17,9 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val callBackUrl = "https://upscan-listener.public.mdtp/upscan-listener/listen"
 
-  private val maxFileSize = 10 * 1024 * 1024
+  private val fileSize = 5 * 1024 * 1024
+
+  val fileBody: Array[Byte] = Array.fill[Byte](fileSize)(0)
 
   val initiateTheUpload: HttpRequestBuilder =
     http("Upscan Initiate")
@@ -49,7 +50,6 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val generateFileBody: SessionHookBuilder = new SessionHookBuilder(
     (session: Session) => {
-      val fileBody: Array[Byte] = Array.fill[Byte](Random.nextInt(maxFileSize))(0)
       session.set("fileBody", fileBody)
     }
   )
