@@ -96,7 +96,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
   )
 
   val pollForResult =
-    during(5 seconds){
+    during(30 seconds){
     asLongAs(session => !session.attributes.get("resultFound").contains(true)) {
       exec(queryUpscanListener).exec(handleResponseFromUpscanListener).pause(500 milliseconds)
     }}.actionBuilders
