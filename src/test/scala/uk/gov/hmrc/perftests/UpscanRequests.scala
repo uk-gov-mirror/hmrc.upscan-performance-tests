@@ -28,8 +28,8 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
         StringBody(s"""{ "callbackUrl": "$callBackUrl" }""")
       )
       .asJSON
-      .check(jsonPath("$").find.saveAs("initiateResponse"))
       .check(status.is(200))
+      .check(jsonPath("$").find.saveAs("initiateResponse"))
 
   case class PreparedUpload(reference: String, uploadRequest: UploadFormTemplate)
 
@@ -37,14 +37,18 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val parseInitiateResponse = new SessionHookBuilder(
     (session: Session) => {
-      implicit val formats = DefaultFormats
+      if (session.isFailed) {
+        session
+      } else {
+        implicit val formats = DefaultFormats
 
-      val initiateResponse   = session.attributes("initiateResponse").toString
-      val uploadFormTemplate = parse(initiateResponse).extract[PreparedUpload]
-      session
-        .set("uploadHref", uploadFormTemplate.uploadRequest.href)
-        .set("fields", uploadFormTemplate.uploadRequest.fields)
-        .set("reference", uploadFormTemplate.reference)
+        val initiateResponse = session.attributes("initiateResponse").toString
+        val uploadFormTemplate = parse(initiateResponse).extract[PreparedUpload]
+        session
+          .set("uploadHref", uploadFormTemplate.uploadRequest.href)
+          .set("fields", uploadFormTemplate.uploadRequest.fields)
+          .set("reference", uploadFormTemplate.reference)
+      }
     }
   )
 
@@ -79,18 +83,21 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val handleResponseFromUpscanListener: SessionHookBuilder = new SessionHookBuilder(
     (session: Session) => {
-
-      implicit val formats = DefaultFormats
-
-      val responses =
-        parse(session.attributes("polledItems").toString).extract[Responses]
-
-      val matchingResponse = responses.responses.find(_.reference == session.attributes("reference"))
-
-      if (matchingResponse.isDefined) {
-        session.set("resultFound", true)
-      } else {
+      if(session.isFailed) {
         session
+      } else {
+        implicit val formats = DefaultFormats
+
+        val responses =
+          parse(session.attributes("polledItems").toString).extract[Responses]
+
+        val matchingResponse = responses.responses.find(_.reference == session.attributes("reference"))
+
+        if (matchingResponse.isDefined) {
+          session.set("resultFound", true)
+        } else {
+          session
+        }
       }
     }
   )
