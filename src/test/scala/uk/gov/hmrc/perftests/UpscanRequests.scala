@@ -42,7 +42,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
       } else {
         implicit val formats = DefaultFormats
 
-        val initiateResponse = session.attributes("initiateResponse").toString
+        val initiateResponse   = session.attributes("initiateResponse").toString
         val uploadFormTemplate = parse(initiateResponse).extract[PreparedUpload]
         session
           .set("uploadHref", uploadFormTemplate.uploadRequest.href)
@@ -83,18 +83,20 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val handleResponseFromUpscanListener: SessionHookBuilder = new SessionHookBuilder(
     (session: Session) => {
-      if(session.isFailed) {
+      if (session.isFailed) {
         session
       } else {
         implicit val formats = DefaultFormats
 
+        val reference = session.attributes("reference")
+
         val responses =
           parse(session.attributes("polledItems").toString).extract[Responses]
 
-        val matchingResponse = responses.responses.find(_.reference == session.attributes("reference"))
+        val matchingResponse = responses.responses.find(_.reference == reference)
 
         if (matchingResponse.isDefined) {
-          session.set("resultFound", true)
+          session.set("resultFound", reference)
         } else {
           session
         }
@@ -103,9 +105,19 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
   )
 
   val pollForResult =
-    during(30 seconds){
-    asLongAs(session => !session.attributes.get("resultFound").contains(true)) {
-      exec(queryUpscanListener).exec(handleResponseFromUpscanListener).pause(500 milliseconds)
-    }}.actionBuilders
+    during(30 seconds) {
+      asLongAs(session => session.attributes.get("resultFound").isEmpty) {
+        exec(queryUpscanListener).exec(handleResponseFromUpscanListener).pause(500 milliseconds)
+      }
+    }.actionBuilders
 
+  val checkIfResultFound = new SessionHookBuilder(
+    (session: Session) => {
+      if (session.attributes.get("resultFound").isEmpty) {
+        session.markAsFailed
+      } else {
+        session
+      }
+    }
+  )
 }
