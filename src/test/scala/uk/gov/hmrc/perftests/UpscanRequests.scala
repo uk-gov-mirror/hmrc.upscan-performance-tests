@@ -72,48 +72,20 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .bodyPart(ByteArrayBodyPart("file", "${fileBody}"))
     .check(status.is(204))
 
-  case class Response(reference: String, fileStatus: String)
-
-  case class Responses(responses: Seq[Response])
-
   val queryUpscanListener: HttpRequestBuilder = http("Fetching file status from upscan-listener")
-    .get(s"$upscaListenerBaseUrl/poll")
-    .check(status.is(200))
-    .check(jsonPath("$").find.saveAs("polledItems"))
-
-  val handleResponseFromUpscanListener: SessionHookBuilder = new SessionHookBuilder(
-    (session: Session) => {
-      if (session.isFailed) {
-        session
-      } else {
-        implicit val formats = DefaultFormats
-
-        val reference = session.attributes("reference")
-
-        val responses =
-          parse(session.attributes("polledItems").toString).extract[Responses]
-
-        val matchingResponse = responses.responses.find(_.reference == reference)
-
-        if (matchingResponse.isDefined) {
-          session.set("resultFound", reference)
-        } else {
-          session
-        }
-      }
-    }
-  )
+    .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
+    .check(status.in(200, 404).saveAs("status"))
 
   val pollForResult =
     during(30 seconds) {
-      asLongAs(session => session.attributes.get("resultFound").isEmpty) {
-        exec(queryUpscanListener).exec(handleResponseFromUpscanListener).pause(500 milliseconds)
+      asLongAs(session => !session.attributes.get("status").contains(200)) {
+        exec(queryUpscanListener).pause(500 milliseconds)
       }
     }.actionBuilders
 
   val checkIfResultFound = new SessionHookBuilder(
     (session: Session) => {
-      if (session.attributes.get("resultFound").isEmpty) {
+      if (!session.attributes.get("status").contains(200)) {
         session.markAsFailed
       } else {
         session
