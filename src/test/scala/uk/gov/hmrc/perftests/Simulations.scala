@@ -7,6 +7,7 @@ class Simulations extends PerformanceTestRunner {
 
   setup("upscan", "Upscan successful file upload")
     .withActions(initiateTheUpload, parseInitiateResponse, generateFileBody, uploadFileToAws)
+    .withActions(storeLoopStartTime)
     .withActions(pollForResult: _*)
     .withActions(checkIfResultFound)
   runSimulation()

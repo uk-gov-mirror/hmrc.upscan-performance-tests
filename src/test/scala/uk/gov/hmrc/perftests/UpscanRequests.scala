@@ -1,5 +1,6 @@
 package uk.gov.hmrc.perftests
 
+import io.gatling.commons.util.ClockSingleton
 import io.gatling.core.Predef._
 import io.gatling.core.action.builder.SessionHookBuilder
 import io.gatling.http.Predef._
@@ -76,11 +77,18 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
     .check(status.in(200, 404).saveAs("status"))
 
+  val storeLoopStartTime = new SessionHookBuilder(
+    (session: Session) => {
+      session.set("loopStartTime", ClockSingleton.nowMillis)
+    }
+  )
+
   val pollForResult =
-    during(30 seconds) {
-      asLongAs(session => !session.attributes.get("status").contains(200)) {
-        exec(queryUpscanListener).pause(500 milliseconds)
-      }
+    asLongAs(
+      session =>
+        !session.attributes.get("status").contains(200) &&
+          (ClockSingleton.nowMillis - session.attributes("loopStartTime").asInstanceOf[Long]) < (90 * 1000)) {
+      exec(queryUpscanListener).pause(500 milliseconds)
     }.actionBuilders
 
   val checkIfResultFound = new SessionHookBuilder(
