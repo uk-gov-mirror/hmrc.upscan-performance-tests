@@ -23,14 +23,14 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
   val fileBody: Array[Byte] = Array.fill[Byte](fileSize)(0)
 
   val initiateTheUpload: HttpRequestBuilder =
-    http("Upscan Initiate")
+    http("Initiate file upload")
       .post(s"$upscanBaseUrl/initiate")
       .body(
         StringBody(s"""{ "callbackUrl": "$callBackUrl" }""")
       )
       .asJSON
       .check(status.is(200))
-      .check(jsonPath("$").find.saveAs("initiateResponse"))
+      .check(bodyString.saveAs("initiateResponse"))
 
   case class PreparedUpload(reference: String, uploadRequest: UploadFormTemplate)
 
@@ -73,31 +73,28 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .bodyPart(ByteArrayBodyPart("file", "${fileBody}"))
     .check(status.is(204))
 
-  val queryUpscanListener: HttpRequestBuilder = http("Fetching file status from upscan-listener")
-    .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
-    .check(status.in(200, 404).saveAs("status"))
-
-  val storeLoopStartTime = new SessionHookBuilder(
+  val registerPoolLoopStartTime = new SessionHookBuilder(
     (session: Session) => {
       session.set("loopStartTime", ClockSingleton.nowMillis)
     }
   )
 
-  val pollForResult =
+  val pollStatusUpdates =
     asLongAs(
-      session =>
-        !session.attributes.get("status").contains(200) &&
-          (ClockSingleton.nowMillis - session.attributes("loopStartTime").asInstanceOf[Long]) < (90 * 1000)) {
-      exec(queryUpscanListener).pause(500 milliseconds)
+      conditionOrTimeout(session => !session.attributes.get("status").contains(200), "loopStartTime", 90 seconds)) {
+      exec(
+        http("Polling file processing status")
+          .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
+          .check(status.in(200, 404).saveAs("status"))
+          .silent).pause(500 milliseconds)
     }.actionBuilders
 
-  val checkIfResultFound = new SessionHookBuilder(
-    (session: Session) => {
-      if (!session.attributes.get("status").contains(200)) {
-        session.markAsFailed
-      } else {
-        session
-      }
-    }
-  )
+  private def conditionOrTimeout(condition: Session => Boolean, loopTimer: String, timeout: Duration)(
+    session: Session) =
+    condition(session) &&
+      (ClockSingleton.nowMillis - session.attributes(loopTimer).asInstanceOf[Long]) < timeout.toMillis
+
+  val finalCheckForProcessingStatus: HttpRequestBuilder = http("Verifying final file processing status")
+    .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
+    .check(status.is(200))
 }
