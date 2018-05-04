@@ -18,7 +18,9 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val callBackUrl = "https://upscan-listener.public.mdtp/upscan-listener/listen"
 
-  private val fileSize = 5 * 1024 * 1024
+  private val fileSize = readProperty("journeys.upscan.fileSize").toInt
+
+  private val pollingTimeout = readProperty("journeys.upscan.pollingTimeoutInSeconds").toInt.seconds
 
   val fileBody: Array[Byte] = Array.fill[Byte](fileSize)(0)
 
@@ -81,7 +83,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val pollStatusUpdates =
     asLongAs(
-      conditionOrTimeout(session => !session.attributes.get("status").contains(200), "loopStartTime", 90 seconds)) {
+      conditionOrTimeout(session => !session.attributes.get("status").contains(200), "loopStartTime", pollingTimeout)) {
       exec(
         http("Polling file processing status")
           .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
