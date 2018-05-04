@@ -13,8 +13,8 @@ import scala.concurrent.duration._
 
 object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
-  private val upscanBaseUrl        = baseUrlFor("upscan")
-  private val upscaListenerBaseUrl = baseUrlFor("upscan-listener")
+  private val upscanBaseUrl        = baseUrlFor("upscan") + "/upscan"
+  private val upscaListenerBaseUrl = baseUrlFor("upscan-listener") + "/upscan-listener"
 
   val callBackUrl = "https://upscan-listener.public.mdtp/upscan-listener/listen"
 
@@ -24,7 +24,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val initiateTheUpload: HttpRequestBuilder =
     http("Upscan Initiate")
-      .post(s"$upscanBaseUrl/upscan/initiate")
+      .post(s"$upscanBaseUrl/initiate")
       .body(
         StringBody(s"""{ "callbackUrl": "$callBackUrl" }""")
       )
