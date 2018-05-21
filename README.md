@@ -19,7 +19,7 @@ The test can be run from Jenkins (deploy-staging, job: upscan-performance-test, 
  or locally (run_staging.sh - against staging).
 Its possible to run tests against other environment by running the following command:
 ```
-sbt '; clean; set javaOptions += "-DbaseUrl=https://www.{environmentNaem}.tax.service.gov.uk"; test'
+sbt '; clean; set javaOptions += "-DbaseUrl=https://www.{environmentName}.tax.service.gov.uk"; test'
 ```
 
 # Interpretation of test results
