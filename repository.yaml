@@ -1,4 +1,4 @@
 leakDetectionExemptions:
-  - ruleId: 'ip_addresses'
+  - ruleId: 'tax_service_gov_uk'
     filePaths:
       - '/run_staging.sh'
