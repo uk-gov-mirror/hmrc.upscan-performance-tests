@@ -27,6 +27,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
   val initiateTheUpload: HttpRequestBuilder =
     http("Initiate file upload")
       .post(s"$upscanBaseUrl/initiate")
+      .header("User-Agent", "upscan-performance-tests")
       .body(
         StringBody(s"""{ "callbackUrl": "$callBackUrl" }""")
       )
@@ -65,6 +66,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .post("${uploadHref}")
     .asMultipartForm
     .bodyPart(StringBodyPart("x-amz-meta-callback-url", "${fields.x-amz-meta-callback-url}"))
+    .bodyPart(StringBodyPart("x-amz-meta-consuming-service", "${fields.x-amz-meta-consuming-service}"))
     .bodyPart(StringBodyPart("x-amz-date", "${fields.x-amz-date}"))
     .bodyPart(StringBodyPart("x-amz-credential", "${fields.x-amz-credential}"))
     .bodyPart(StringBodyPart("x-amz-algorithm", "${fields.x-amz-algorithm}"))
