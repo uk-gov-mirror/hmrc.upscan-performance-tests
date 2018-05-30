@@ -70,6 +70,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .bodyPart(StringBodyPart("x-amz-date", "${fields.x-amz-date}"))
     .bodyPart(StringBodyPart("x-amz-credential", "${fields.x-amz-credential}"))
     .bodyPart(StringBodyPart("x-amz-algorithm", "${fields.x-amz-algorithm}"))
+    .bodyPart(StringBodyPart("x-amz-meta-original-filename", "${fields.x-amz-meta-original-filename}"))
     .bodyPart(StringBodyPart("key", "${fields.key}"))
     .bodyPart(StringBodyPart("acl", "${fields.acl}"))
     .bodyPart(StringBodyPart("x-amz-signature ", "${fields.x-amz-signature}"))
