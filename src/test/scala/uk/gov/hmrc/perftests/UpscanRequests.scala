@@ -102,4 +102,5 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
   val finalCheckForProcessingStatus: HttpRequestBuilder = http("Verifying final file processing status")
     .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
     .check(status.is(200))
+    .check(jsonPath("$..fileStatus").is("READY"))
 }
