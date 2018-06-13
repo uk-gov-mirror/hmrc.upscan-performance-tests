@@ -1,5 +1,7 @@
 package uk.gov.hmrc.perftests
 
+import java.io.InputStream
+
 import io.gatling.commons.util.ClockSingleton
 import io.gatling.core.Predef._
 import io.gatling.core.action.builder.SessionHookBuilder
@@ -22,7 +24,10 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   private val pollingTimeout = readProperty("journeys.upscan.pollingTimeoutInSeconds").toInt.seconds
 
-  val fileBody: Array[Byte] = Array.fill[Byte](fileSize)(0)
+  val testFileContents = getContentFromFile("/test.pdf")
+  val fileBody =
+    if (testFileContents.length < fileSize) testFileContents ++ Array.fill[Byte](fileSize - testFileContents.length)(0)
+    else testFileContents
 
   val initiateTheUpload: HttpRequestBuilder =
     http("Initiate file upload")
@@ -103,4 +108,9 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
     .check(status.is(200))
     .check(jsonPath("$..fileStatus").is("READY"))
+
+  private def getContentFromFile(filename: String): Array[Byte] = {
+    val resource: InputStream = getClass.getResourceAsStream(filename)
+    Iterator.continually(resource.read).takeWhile(_ != -1).take(1000).map(_.toByte).toArray
+  }
 }
