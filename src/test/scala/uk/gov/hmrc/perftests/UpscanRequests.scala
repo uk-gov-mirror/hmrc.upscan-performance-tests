@@ -108,6 +108,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
     .check(status.is(200))
     .check(jsonPath("$..fileStatus").is("READY"))
+    .extraInfoExtractor(dumpSessionOnFailure)
 
   private def getContentFromFile(filename: String): Array[Byte] = {
     val resource: InputStream = getClass.getResourceAsStream(filename)
