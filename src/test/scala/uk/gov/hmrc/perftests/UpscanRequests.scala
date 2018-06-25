@@ -10,8 +10,8 @@ import io.gatling.http.request.builder.HttpRequestBuilder
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import uk.gov.hmrc.performance.conf.{HttpConfiguration, ServicesConfiguration}
-
 import scala.concurrent.duration._
+import uk.gov.hmrc.perftests.ExtraInfoExtractor.dumpOnFailure
 
 object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
@@ -71,17 +71,19 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .post("${uploadHref}")
     .asMultipartForm
     .bodyPart(StringBodyPart("x-amz-meta-callback-url", "${fields.x-amz-meta-callback-url}"))
-    .bodyPart(StringBodyPart("x-amz-meta-consuming-service", "${fields.x-amz-meta-consuming-service}"))
     .bodyPart(StringBodyPart("x-amz-date", "${fields.x-amz-date}"))
     .bodyPart(StringBodyPart("x-amz-credential", "${fields.x-amz-credential}"))
-    .bodyPart(StringBodyPart("x-amz-algorithm", "${fields.x-amz-algorithm}"))
     .bodyPart(StringBodyPart("x-amz-meta-original-filename", "${fields.x-amz-meta-original-filename}"))
+    .bodyPart(StringBodyPart("x-amz-algorithm", "${fields.x-amz-algorithm}"))
     .bodyPart(StringBodyPart("key", "${fields.key}"))
     .bodyPart(StringBodyPart("acl", "${fields.acl}"))
     .bodyPart(StringBodyPart("x-amz-signature ", "${fields.x-amz-signature}"))
+    .bodyPart(StringBodyPart("x-amz-meta-session-id ", "${fields.x-amz-meta-session-id}"))
+    .bodyPart(StringBodyPart("x-amz-meta-consuming-service", "${fields.x-amz-meta-consuming-service}"))
     .bodyPart(StringBodyPart("policy", "${fields.policy}"))
     .bodyPart(ByteArrayBodyPart("file", "${fileBody}"))
     .check(status.is(204))
+    .extraInfoExtractor(dumpOnFailure)
 
   val registerPoolLoopStartTime = new SessionHookBuilder(
     (session: Session) => {
