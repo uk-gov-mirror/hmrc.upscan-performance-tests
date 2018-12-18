@@ -15,8 +15,8 @@ import uk.gov.hmrc.perftests.ExtraInfoExtractor.dumpOnFailure
 
 object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
-  private val upscanBaseUrl        = baseUrlFor("upscan") + "/upscan"
-  private val upscaListenerBaseUrl = baseUrlFor("upscan-listener") + "/upscan-listener"
+  private val upscanBaseUrl         = baseUrlFor("upscan") + "/upscan"
+  private val upscanListenerBaseUrl = baseUrlFor("upscan-listener") + "/upscan-listener"
 
   val callBackUrl = "https://upscan-listener.public.mdtp/upscan-listener/listen"
 
@@ -81,6 +81,8 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .bodyPart(StringBodyPart("x-amz-meta-session-id", "${fields.x-amz-meta-session-id}"))
     .bodyPart(StringBodyPart("x-amz-meta-request-id", "${fields.x-amz-meta-request-id}"))
     .bodyPart(StringBodyPart("x-amz-meta-consuming-service", "${fields.x-amz-meta-consuming-service}"))
+    .bodyPart(StringBodyPart("x-amz-meta-upscan-initiate-received", "${fields.x-amz-meta-upscan-initiate-received}"))
+    .bodyPart(StringBodyPart("x-amz-meta-upscan-initiate-response", "${fields.x-amz-meta-upscan-initiate-response}"))
     .bodyPart(StringBodyPart("policy", "${fields.policy}"))
     .bodyPart(ByteArrayBodyPart("file", "${fileBody}"))
     .check(status.is(204))
@@ -97,7 +99,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
       conditionOrTimeout(session => !session.attributes.get("status").contains(200), "loopStartTime", pollingTimeout)) {
       exec(
         http("Polling file processing status")
-          .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
+          .get(s"$upscanListenerBaseUrl/poll/" + "${reference}")
           .check(status.in(200, 404).saveAs("status"))
           .silent).pause(500 milliseconds)
     }.actionBuilders
@@ -108,7 +110,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
       (ClockSingleton.nowMillis - session.attributes(loopTimer).asInstanceOf[Long]) < timeout.toMillis
 
   val finalCheckForProcessingStatus: HttpRequestBuilder = http("Verifying final file processing status")
-    .get(s"$upscaListenerBaseUrl/poll/" + "${reference}")
+    .get(s"$upscanListenerBaseUrl/poll/" + "${reference}")
     .check(status.is(200))
     .check(jsonPath("$..fileStatus").is("READY"))
     .extraInfoExtractor(dumpSessionOnFailure)
