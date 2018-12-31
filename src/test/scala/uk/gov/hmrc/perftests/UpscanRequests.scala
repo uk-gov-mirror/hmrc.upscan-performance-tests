@@ -10,6 +10,7 @@ import io.gatling.http.request.builder.HttpRequestBuilder
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import uk.gov.hmrc.performance.conf.{HttpConfiguration, ServicesConfiguration}
+
 import scala.concurrent.duration._
 import uk.gov.hmrc.perftests.ExtraInfoExtractor.dumpOnFailure
 
@@ -18,16 +19,15 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
   private val upscanBaseUrl         = baseUrlFor("upscan") + "/upscan"
   private val upscanListenerBaseUrl = baseUrlFor("upscan-listener") + "/upscan-listener"
 
-  val callBackUrl = "https://upscan-listener.public.mdtp/upscan-listener/listen"
+  private val callBackUrl = "https://upscan-listener.public.mdtp/upscan-listener/listen"
 
-  private val fileSize = readProperty("journeys.upscan.fileSize").toInt
+  private val pollingTimeout = readProperty("upscan-performance-tests.pollingTimeoutInSeconds").toInt.seconds
 
-  private val pollingTimeout = readProperty("journeys.upscan.pollingTimeoutInSeconds").toInt.seconds
+  def fileBytes(filename: String): Array[Byte] = {
+    val resource: InputStream = getClass.getResourceAsStream(filename)
 
-  val testFileContents = getContentFromFile("/test.pdf")
-  val fileBody =
-    if (testFileContents.length < fileSize) testFileContents ++ Array.fill[Byte](fileSize - testFileContents.length)(0)
-    else testFileContents
+    Iterator.continually(resource.read).takeWhile(_ != -1).map(_.toByte).toArray
+  }
 
   val initiateTheUpload: HttpRequestBuilder =
     http("Initiate file upload")
@@ -61,9 +61,9 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     }
   )
 
-  val generateFileBody: SessionHookBuilder = new SessionHookBuilder(
+  def addFileToSession(filename: String): SessionHookBuilder = new SessionHookBuilder(
     (session: Session) => {
-      session.set("fileBody", fileBody)
+      session.set("fileBody", fileBytes(filename))
     }
   )
 
@@ -109,10 +109,10 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     condition(session) &&
       (ClockSingleton.nowMillis - session.attributes(loopTimer).asInstanceOf[Long]) < timeout.toMillis
 
-  val finalCheckForProcessingStatus: HttpRequestBuilder = http("Verifying final file processing status")
+  def verifyFileStatus(expectedStatus: String): HttpRequestBuilder = http(s"Verifying final file processing status is: $expectedStatus")
     .get(s"$upscanListenerBaseUrl/poll/" + "${reference}")
     .check(status.is(200))
-    .check(jsonPath("$..fileStatus").is("READY"))
+    .check(jsonPath("$..fileStatus").is(expectedStatus))
     .extraInfoExtractor(dumpSessionOnFailure)
 
   private def getContentFromFile(filename: String): Array[Byte] = {
