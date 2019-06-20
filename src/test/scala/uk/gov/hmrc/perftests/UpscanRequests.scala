@@ -4,7 +4,7 @@ import java.io.InputStream
 
 import io.gatling.commons.util.ClockSingleton
 import io.gatling.core.Predef._
-import io.gatling.core.action.builder.SessionHookBuilder
+import io.gatling.core.action.builder.{ActionBuilder, SessionHookBuilder}
 import io.gatling.http.Predef._
 import io.gatling.http.request.builder.HttpRequestBuilder
 import org.json4s._
@@ -29,13 +29,23 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     Iterator.continually(resource.read).takeWhile(_ != -1).map(_.toByte).toArray
   }
 
-  val initiateTheUpload: HttpRequestBuilder =
-    http("Initiate file upload")
-      .post(s"$upscanBaseUrl/initiate")
+  val initiateTheUploadV1: HttpRequestBuilder = initiateUploadRequest("Initiate V1 file upload",
+    s"$upscanBaseUrl/initiate",
+    s"""{ "callbackUrl": "$callBackUrl" }""")
+
+  val initiateTheUploadV2: HttpRequestBuilder = initiateUploadRequest("Initiate V2 file upload",
+    s"$upscanBaseUrl/v2/initiate",
+    s"""{
+        	"callbackUrl": "$callBackUrl",
+        	"successRedirect": "https://www.google.co.uk",
+        	"errorRedirect": "https://www.amazon.co.uk"
+        }""")
+
+  private def initiateUploadRequest(requestName: String, url: String, body: String) =
+    http(requestName)
+      .post(url)
       .header("User-Agent", "upscan-performance-tests")
-      .body(
-        StringBody(s"""{ "callbackUrl": "$callBackUrl" }""")
-      )
+      .body(StringBody(body))
       .asJSON
       .check(status.is(200))
       .check(bodyString.saveAs("initiateResponse"))
@@ -49,7 +59,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
       if (session.isFailed) {
         session
       } else {
-        implicit val formats = DefaultFormats
+        implicit val formats: DefaultFormats.type = DefaultFormats
 
         val initiateResponse   = session.attributes("initiateResponse").toString
         val uploadFormTemplate = parse(initiateResponse).extract[PreparedUpload]
@@ -88,13 +98,38 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .check(status.is(204))
     .extraInfoExtractor(dumpOnFailure)
 
+  val uploadFileToUpscanProxy: HttpRequestBuilder = http("Uploading file to Upscan Proxy")
+    .post("${uploadHref}")
+    .disableFollowRedirect
+    .asMultipartForm
+    .bodyPart(StringBodyPart("x-amz-meta-callback-url", "${fields.x-amz-meta-callback-url}"))
+    .bodyPart(StringBodyPart("x-amz-date", "${fields.x-amz-date}"))
+    .bodyPart(StringBodyPart("x-amz-credential", "${fields.x-amz-credential}"))
+    .bodyPart(StringBodyPart("x-amz-meta-original-filename", "${fields.x-amz-meta-original-filename}"))
+    .bodyPart(StringBodyPart("x-amz-algorithm", "${fields.x-amz-algorithm}"))
+    .bodyPart(StringBodyPart("key", "${fields.key}"))
+    .bodyPart(StringBodyPart("acl", "${fields.acl}"))
+    .bodyPart(StringBodyPart("x-amz-signature", "${fields.x-amz-signature}"))
+    .bodyPart(StringBodyPart("x-amz-meta-session-id", "${fields.x-amz-meta-session-id}"))
+    .bodyPart(StringBodyPart("x-amz-meta-request-id", "${fields.x-amz-meta-request-id}"))
+    .bodyPart(StringBodyPart("x-amz-meta-consuming-service", "${fields.x-amz-meta-consuming-service}"))
+    .bodyPart(StringBodyPart("x-amz-meta-upscan-initiate-received", "${fields.x-amz-meta-upscan-initiate-received}"))
+    .bodyPart(StringBodyPart("x-amz-meta-upscan-initiate-response", "${fields.x-amz-meta-upscan-initiate-response}"))
+    .bodyPart(StringBodyPart("success_action_redirect", "${fields.success_action_redirect}"))
+    .bodyPart(StringBodyPart("error_action_redirect", "${fields.error_action_redirect}"))
+    .bodyPart(StringBodyPart("policy", "${fields.policy}"))
+    .bodyPart(ByteArrayBodyPart("file", "${fileBody}"))
+    .check(header("Location").transform(_.contains("google")).is(true))
+    .check(status.is(303))
+    .extraInfoExtractor(dumpOnFailure)
+
   val registerPoolLoopStartTime = new SessionHookBuilder(
     (session: Session) => {
       session.set("loopStartTime", ClockSingleton.nowMillis)
     }
   )
 
-  val pollStatusUpdates =
+  val pollStatusUpdates: List[ActionBuilder] =
     asLongAs(
       conditionOrTimeout(session => !session.attributes.get("status").contains(200), "loopStartTime", pollingTimeout)) {
       exec(
