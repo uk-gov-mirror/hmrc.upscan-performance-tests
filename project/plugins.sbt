@@ -8,8 +8,6 @@ resolvers += "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases/
 
 resolvers += Resolver.url("scoverage-bintray", url("https://dl.bintray.com/sksamuel/sbt-plugins/"))(Resolver.ivyStylePatterns)
 
-addSbtPlugin("uk.gov.hmrc" % "hmrc-resolvers" % "1.2.0")
-
 addSbtPlugin("uk.gov.hmrc" % "sbt-auto-build" % "1.8.0")
 
 addSbtPlugin("io.gatling" % "gatling-sbt" % "2.1.7")
