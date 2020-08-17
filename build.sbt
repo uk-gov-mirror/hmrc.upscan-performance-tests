@@ -18,7 +18,7 @@ val projectSettings = Seq(
 lazy val root = (project in file("."))
   .enablePlugins(GatlingPlugin, CorePlugin, JvmPlugin, IvyPlugin)
   .settings(projectSettings)
-  .settings(`show-classpath`)
+  .settings(showClasspath)
   .settings(scalacOptions ++= scalaOptions)
   .settings(libraryDependencies ++= Seq(
     Dependencies.Compile.nscalaTime,
@@ -37,4 +37,4 @@ lazy val root = (project in file("."))
   )
 
 
-lazy val `show-classpath` = taskKey[Unit]("show-classpath") := println((fullClasspath in Runtime).value.files.absString)
+lazy val showClasspath = taskKey[Unit]("show-classpath") := println((fullClasspath in Runtime).value.files.absString)
