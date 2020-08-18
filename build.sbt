@@ -1,13 +1,3 @@
-val scalaOptions = Seq(
-  "-unchecked",
-  "-deprecation",
-  "-Xlint",
-  "-language:_",
-  "-target:jvm-1.8",
-  "-Xmax-classfile-name", "100",
-  "-encoding", "UTF-8"
-)
-
 val projectSettings = Seq(
   name := "upscan-performance-tests",
   organization := "uk.gov.hmrc",
@@ -19,16 +9,7 @@ lazy val root = (project in file("."))
   .enablePlugins(GatlingPlugin, CorePlugin, JvmPlugin, IvyPlugin)
   .settings(projectSettings)
   .settings(showClasspath)
-  .settings(scalacOptions ++= scalaOptions)
-  .settings(libraryDependencies ++= Seq(
-    Dependencies.Compile.nscalaTime,
-    Dependencies.Compile.typesafeConfig,
-    Dependencies.Compile.gatlingHighCharts,
-    Dependencies.Compile.gatlingTestFramework,
-    Dependencies.Compile.performanceTestRunner,
-    Dependencies.Compile.json4sJackson,
-    Dependencies.Compile.json4sNative,
-    Dependencies.Compile.gatlingVTDXMLPlugin))
+  .settings(libraryDependencies ++= Dependencies.test)
   .settings(
     retrieveManaged := true,
     initialCommands in console := "import uk.gov.hmrc._",
@@ -37,4 +18,4 @@ lazy val root = (project in file("."))
   )
 
 
-lazy val showClasspath = taskKey[Unit]("show-classpath") := println((fullClasspath in Runtime).value.files.absString)
+lazy val showClasspath = taskKey[Unit]("show-classpath") := println((fullClasspath in Test).value.files.absString)
