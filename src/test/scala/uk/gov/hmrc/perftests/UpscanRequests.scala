@@ -14,6 +14,8 @@ import uk.gov.hmrc.performance.conf.{HttpConfiguration, ServicesConfiguration}
 import scala.concurrent.duration._
 import uk.gov.hmrc.perftests.ExtraInfoExtractor.dumpOnFailure
 
+import scala.language.postfixOps
+
 object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   private val upscanBaseUrl         = baseUrlFor("upscan") + "/upscan"

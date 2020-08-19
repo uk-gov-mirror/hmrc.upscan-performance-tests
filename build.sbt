@@ -1,3 +1,7 @@
+val scalaOptions = Seq(
+  "-feature"
+)
+
 val projectSettings = Seq(
   name := "upscan-performance-tests",
   organization := "uk.gov.hmrc",
@@ -9,6 +13,7 @@ lazy val root = (project in file("."))
   .enablePlugins(GatlingPlugin, CorePlugin, JvmPlugin, IvyPlugin)
   .settings(projectSettings)
   .settings(showClasspath)
+  .settings(scalacOptions ++= scalaOptions)
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(
     retrieveManaged := true,
