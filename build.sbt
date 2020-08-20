@@ -10,7 +10,7 @@ val projectSettings = Seq(
 )
 
 lazy val root = (project in file("."))
-  .enablePlugins(GatlingPlugin, CorePlugin, JvmPlugin, IvyPlugin)
+  .enablePlugins(GatlingPlugin, CorePlugin, JvmPlugin, IvyPlugin, SbtAutoBuildPlugin)
   .settings(projectSettings)
   .settings(showClasspath)
   .settings(scalacOptions ++= scalaOptions)
@@ -19,6 +19,9 @@ lazy val root = (project in file("."))
     retrieveManaged := true,
     initialCommands in console := "import uk.gov.hmrc._",
     parallelExecution in Test := false,
+    // Enabling sbt-auto-build plugin provides DefaultBuildSettings with default `testOptions` from `sbt-settings` plugin.
+    // These testOptions are not compatible with `sbt gatling:test`. So we have to override testOptions here.
+    testOptions in Test := Seq.empty,
     resolvers := Seq(Resolver.bintrayRepo("hmrc", "releases"))
   )
 
