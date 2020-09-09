@@ -49,15 +49,14 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
 
   val initiateTheUploadV1: HttpRequestBuilder = initiateUploadRequest("Initiate V1 file upload",
     s"$upscanBaseUrl/initiate",
-    s"""{ "callbackUrl": "$callBackUrl" }""")
+    s"""{"callbackUrl": "$callBackUrl"}""")
 
   val initiateTheUploadV2: HttpRequestBuilder = initiateUploadRequest("Initiate V2 file upload",
     s"$upscanBaseUrl/v2/initiate",
-    s"""{
-        	"callbackUrl": "$callBackUrl",
-        	"successRedirect": "https://www.google.co.uk",
-        	"errorRedirect": "https://www.amazon.co.uk"
-        }""")
+    s"""|{"callbackUrl": "$callBackUrl",
+        | "successRedirect": "https://www.google.co.uk",
+        | "errorRedirect": "https://www.amazon.co.uk"
+        |}""".stripMargin)
 
   private def initiateUploadRequest(requestName: String, url: String, body: String) =
     http(requestName)

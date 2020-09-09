@@ -15,11 +15,11 @@ shown on the report)
 
 # How to run the test
 
-The test can be run from Jenkins (deploy-staging, job: upscan-performance-test, test is run against staging environment)
- or locally (run_staging.sh - against staging).
-Its possible to run tests against other environment by running the following command:
+The test can be run from performance Jenkins (job: `upscan-performance-tests`) which runs against the staging environment.
+It can also be kicked-off locally via `run_staging.sh`
+It is possible to run tests against another environment by changing the `baseUrl` as follows:
 ```
-sbt '; clean; set javaOptions += "-DbaseUrl=https://www.{environmentName}.tax.service.gov.uk"; test'
+sbt '; clean; set javaOptions += "-DbaseUrl=https://www.{environmentName}.tax.service.gov.uk"; gatling:test'
 ```
 
 # Interpretation of test results
