@@ -27,9 +27,22 @@ class Simulations extends PerformanceTestRunner {
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("READY"))
 
+  setup("v1-large-pdf", "V1 Upload large pdf")
+    .withActions(
+      initiateTheUploadV1,
+      parseInitiateResponse,
+      addFileToSession("/upload/large-file-test.pdf"),
+      uploadFileToAws)
+    .withActions(registerPoolLoopStartTime)
+    .withActions(pollStatusUpdates: _*)
+    .withActions(verifyFileStatus("READY"))
+
   setup("v1-virus", "V1 Upload virus")
     .withActions(
-      initiateTheUploadV1, parseInitiateResponse, addFileToSession("/upload/eicar-standard-av-test-file"), uploadFileToAws)
+      initiateTheUploadV1,
+      parseInitiateResponse,
+      addFileToSession("/upload/eicar-standard-av-test-file"),
+      uploadFileToAws)
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("FAILED"))
@@ -41,20 +54,41 @@ class Simulations extends PerformanceTestRunner {
     .withActions(verifyFileStatus("FAILED"))
 
   setup("v2-clean-pdf", "V2 Upload clean pdf")
-    .withActions(initiateTheUploadV2, parseInitiateResponse, addFileToSession("/upload/test.pdf"), uploadFileToUpscanProxy)
+    .withActions(
+      initiateTheUploadV2,
+      parseInitiateResponse,
+      addFileToSession("/upload/test.pdf"),
+      uploadFileToUpscanProxy)
+    .withActions(registerPoolLoopStartTime)
+    .withActions(pollStatusUpdates: _*)
+    .withActions(verifyFileStatus("READY"))
+
+  setup("v2-large-pdf", "V2 Upload large pdf")
+    .withActions(
+      initiateTheUploadV2,
+      parseInitiateResponse,
+      addFileToSession("/upload/large-file-test.pdf"),
+      uploadFileToUpscanProxy)
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("READY"))
 
   setup("v2-virus", "V2 Upload virus")
     .withActions(
-      initiateTheUploadV2, parseInitiateResponse, addFileToSession("/upload/eicar-standard-av-test-file"), uploadFileToUpscanProxy)
+      initiateTheUploadV2,
+      parseInitiateResponse,
+      addFileToSession("/upload/eicar-standard-av-test-file"),
+      uploadFileToUpscanProxy)
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("FAILED"))
 
   setup("v2-invalid-txt-filetype", "V2 Upload invalid .txt file type")
-    .withActions(initiateTheUploadV2, parseInitiateResponse, addFileToSession("/upload/test.txt"), uploadFileToUpscanProxy)
+    .withActions(
+      initiateTheUploadV2,
+      parseInitiateResponse,
+      addFileToSession("/upload/test.txt"),
+      uploadFileToUpscanProxy)
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("FAILED"))
