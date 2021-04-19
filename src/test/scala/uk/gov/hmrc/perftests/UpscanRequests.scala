@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.perftests
 
-import java.io.InputStream
-
 import io.gatling.commons.util.ClockSingleton
 import io.gatling.core.Predef._
 import io.gatling.core.action.builder.{ActionBuilder, SessionHookBuilder}
@@ -26,10 +24,11 @@ import io.gatling.http.request.builder.HttpRequestBuilder
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import uk.gov.hmrc.performance.conf.{HttpConfiguration, ServicesConfiguration}
-
-import scala.concurrent.duration._
 import uk.gov.hmrc.perftests.ExtraInfoExtractor.dumpOnFailure
 
+import java.io.InputStream
+import java.nio.file.Paths
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
@@ -40,12 +39,6 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
   private val callBackUrl = "https://upscan-listener.public.mdtp/upscan-listener/listen"
 
   private val pollingTimeout = readProperty("upscan-performance-tests.pollingTimeoutInSeconds").toInt.seconds
-
-  def fileBytes(filename: String): Array[Byte] = {
-    val resource: InputStream = getClass.getResourceAsStream(filename)
-
-    Iterator.continually(resource.read).takeWhile(_ != -1).map(_.toByte).toArray
-  }
 
   val initiateTheUploadV1: HttpRequestBuilder = initiateUploadRequest("Initiate V1 file upload",
     s"$upscanBaseUrl/initiate",
@@ -88,13 +81,7 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     }
   )
 
-  def addFileToSession(filename: String): SessionHookBuilder = new SessionHookBuilder(
-    (session: Session) => {
-      session.set("fileBody", fileBytes(filename))
-    }
-  )
-
-  val uploadFileToAws: HttpRequestBuilder = http("Uploading file to AWS")
+  def uploadFileToAws(filename: String): HttpRequestBuilder = http("Uploading file to AWS")
     .post("${uploadHref}")
     .asMultipartForm
     .bodyPart(StringBodyPart("x-amz-meta-callback-url", "${fields.x-amz-meta-callback-url}"))
@@ -111,11 +98,11 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .bodyPart(StringBodyPart("x-amz-meta-upscan-initiate-received", "${fields.x-amz-meta-upscan-initiate-received}"))
     .bodyPart(StringBodyPart("x-amz-meta-upscan-initiate-response", "${fields.x-amz-meta-upscan-initiate-response}"))
     .bodyPart(StringBodyPart("policy", "${fields.policy}"))
-    .bodyPart(ByteArrayBodyPart("file", "${fileBody}"))
+    .bodyPart(RawFileBodyPart("file", getResourceAbsolutePath(filename)))
     .check(status.is(204))
     .extraInfoExtractor(dumpOnFailure)
 
-  val uploadFileToUpscanProxy: HttpRequestBuilder = http("Uploading file to Upscan Proxy")
+  def uploadFileToUpscanProxy(filename: String): HttpRequestBuilder = http("Uploading file to Upscan Proxy")
     .post("${uploadHref}")
     .disableFollowRedirect
     .asMultipartForm
@@ -135,10 +122,16 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .bodyPart(StringBodyPart("success_action_redirect", "${fields.success_action_redirect}"))
     .bodyPart(StringBodyPart("error_action_redirect", "${fields.error_action_redirect}"))
     .bodyPart(StringBodyPart("policy", "${fields.policy}"))
-    .bodyPart(ByteArrayBodyPart("file", "${fileBody}"))
+    .bodyPart(RawFileBodyPart("file", getResourceAbsolutePath(filename)))
     .check(header("Location").transform(_.contains("google")).is(true))
     .check(status.is(303))
     .extraInfoExtractor(dumpOnFailure)
+
+  private def getResourceAbsolutePath(filename: String) = {
+    val res = getClass.getResource(filename)
+    val file = Paths.get(res.toURI).toFile
+    file.getAbsolutePath
+  }
 
   val registerPoolLoopStartTime = new SessionHookBuilder(
     (session: Session) => {

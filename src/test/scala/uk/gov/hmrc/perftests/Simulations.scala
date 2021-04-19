@@ -22,7 +22,7 @@ import uk.gov.hmrc.perftests.UpscanRequests._
 class Simulations extends PerformanceTestRunner {
 
   setup("v1-clean-pdf", "V1 Upload clean pdf")
-    .withActions(initiateTheUploadV1, parseInitiateResponse, addFileToSession("/upload/test.pdf"), uploadFileToAws)
+    .withActions(initiateTheUploadV1, parseInitiateResponse, uploadFileToAws("/upload/test.pdf"))
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("READY"))
@@ -31,8 +31,7 @@ class Simulations extends PerformanceTestRunner {
     .withActions(
       initiateTheUploadV1,
       parseInitiateResponse,
-      addFileToSession("/upload/large-file-test.pdf"),
-      uploadFileToAws)
+      uploadFileToAws("/upload/large-file-test.pdf"))
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("READY"))
@@ -41,14 +40,13 @@ class Simulations extends PerformanceTestRunner {
     .withActions(
       initiateTheUploadV1,
       parseInitiateResponse,
-      addFileToSession("/upload/eicar-standard-av-test-file"),
-      uploadFileToAws)
+      uploadFileToAws("/upload/eicar-standard-av-test-file"))
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("FAILED"))
 
   setup("v1-invalid-txt-filetype", "V1 Upload invalid .txt file type")
-    .withActions(initiateTheUploadV1, parseInitiateResponse, addFileToSession("/upload/test.txt"), uploadFileToAws)
+    .withActions(initiateTheUploadV1, parseInitiateResponse, uploadFileToAws("/upload/test.txt"))
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("FAILED"))
@@ -57,8 +55,7 @@ class Simulations extends PerformanceTestRunner {
     .withActions(
       initiateTheUploadV2,
       parseInitiateResponse,
-      addFileToSession("/upload/test.pdf"),
-      uploadFileToUpscanProxy)
+      uploadFileToUpscanProxy("/upload/test.pdf"))
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("READY"))
@@ -67,8 +64,7 @@ class Simulations extends PerformanceTestRunner {
     .withActions(
       initiateTheUploadV2,
       parseInitiateResponse,
-      addFileToSession("/upload/large-file-test.pdf"),
-      uploadFileToUpscanProxy)
+      uploadFileToUpscanProxy("/upload/large-file-test.pdf"))
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("READY"))
@@ -77,8 +73,7 @@ class Simulations extends PerformanceTestRunner {
     .withActions(
       initiateTheUploadV2,
       parseInitiateResponse,
-      addFileToSession("/upload/eicar-standard-av-test-file"),
-      uploadFileToUpscanProxy)
+      uploadFileToUpscanProxy("/upload/eicar-standard-av-test-file"))
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("FAILED"))
@@ -87,8 +82,7 @@ class Simulations extends PerformanceTestRunner {
     .withActions(
       initiateTheUploadV2,
       parseInitiateResponse,
-      addFileToSession("/upload/test.txt"),
-      uploadFileToUpscanProxy)
+      uploadFileToUpscanProxy("/upload/test.txt"))
     .withActions(registerPoolLoopStartTime)
     .withActions(pollStatusUpdates: _*)
     .withActions(verifyFileStatus("FAILED"))
