@@ -16,17 +16,14 @@
 
 package uk.gov.hmrc.perftests
 
-import io.gatling.commons.util.ClockSingleton
 import io.gatling.core.Predef._
-import io.gatling.core.action.builder.{ActionBuilder, SessionHookBuilder}
+import io.gatling.core.action.builder.SessionHookBuilder
 import io.gatling.http.Predef._
 import io.gatling.http.request.builder.HttpRequestBuilder
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import uk.gov.hmrc.performance.conf.{HttpConfiguration, ServicesConfiguration}
-import uk.gov.hmrc.perftests.ExtraInfoExtractor.dumpOnFailure
 
-import java.io.InputStream
 import java.nio.file.Paths
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -54,9 +51,10 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
   private def initiateUploadRequest(requestName: String, url: String, body: String) =
     http(requestName)
       .post(url)
+      .ignoreProtocolHeaders
       .header("User-Agent", "upscan-performance-tests")
       .body(StringBody(body))
-      .asJSON
+      .asJson
       .check(status.is(200))
       .check(bodyString.saveAs("initiateResponse"))
 
@@ -78,7 +76,8 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
           .set("fields", uploadFormTemplate.uploadRequest.fields)
           .set("reference", uploadFormTemplate.reference)
       }
-    }
+    },
+    exitable = true
   )
 
   def uploadFileToAws(filename: String): HttpRequestBuilder = http("Uploading file to AWS")
@@ -100,7 +99,6 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .bodyPart(StringBodyPart("policy", "${fields.policy}"))
     .bodyPart(RawFileBodyPart("file", getResourceAbsolutePath(filename)))
     .check(status.is(204))
-    .extraInfoExtractor(dumpOnFailure)
 
   def uploadFileToUpscanProxy(filename: String): HttpRequestBuilder = http("Uploading file to Upscan Proxy")
     .post("${uploadHref}")
@@ -125,7 +123,6 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     .bodyPart(RawFileBodyPart("file", getResourceAbsolutePath(filename)))
     .check(header("Location").transform(_.contains("google")).is(true))
     .check(status.is(303))
-    .extraInfoExtractor(dumpOnFailure)
 
   private def getResourceAbsolutePath(filename: String) = {
     val res = getClass.getResource(filename)
@@ -133,35 +130,19 @@ object UpscanRequests extends ServicesConfiguration with HttpConfiguration {
     file.getAbsolutePath
   }
 
-  val registerPoolLoopStartTime = new SessionHookBuilder(
-    (session: Session) => {
-      session.set("loopStartTime", ClockSingleton.nowMillis)
-    }
-  )
-
-  val pollStatusUpdates: List[ActionBuilder] =
-    asLongAs(
-      conditionOrTimeout(session => !session.attributes.get("status").contains(200), "loopStartTime", pollingTimeout)) {
+  val pollStatusUpdates =
+    asLongAsDuring(!_.attributes.get("status").contains(200), pollingTimeout) {
       exec(
         http("Polling file processing status")
           .get(s"$upscanListenerBaseUrl/poll/" + "${reference}")
           .check(status.in(200, 404).saveAs("status"))
-          .silent).pause(500 milliseconds)
+          .silent).pause(500.milliseconds)
     }.actionBuilders
 
-  private def conditionOrTimeout(condition: Session => Boolean, loopTimer: String, timeout: Duration)(
-    session: Session) =
-    condition(session) &&
-      (ClockSingleton.nowMillis - session.attributes(loopTimer).asInstanceOf[Long]) < timeout.toMillis
+  def verifyFileStatus(expectedStatus: String): HttpRequestBuilder =
+    http(s"Verifying final file processing status is: $expectedStatus")
+      .get(s"$upscanListenerBaseUrl/poll/" + "${reference}")
+      .check(status.is(200))
+      .check(jsonPath("$..fileStatus").is(expectedStatus))
 
-  def verifyFileStatus(expectedStatus: String): HttpRequestBuilder = http(s"Verifying final file processing status is: $expectedStatus")
-    .get(s"$upscanListenerBaseUrl/poll/" + "${reference}")
-    .check(status.is(200))
-    .check(jsonPath("$..fileStatus").is(expectedStatus))
-    .extraInfoExtractor(dumpSessionOnFailure)
-
-  private def getContentFromFile(filename: String): Array[Byte] = {
-    val resource: InputStream = getClass.getResourceAsStream(filename)
-    Iterator.continually(resource.read).takeWhile(_ != -1).take(1000).map(_.toByte).toArray
-  }
 }
